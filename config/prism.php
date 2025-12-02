@@ -64,5 +64,13 @@ return [
             'api_key' => env('PERPLEXITY_API_KEY', ''),
             'url' => env('PERPLEXITY_URL', 'https://api.perplexity.ai'),
         ],
+        'gigachat' => [
+            'client_id' => env('GIGACHAT_CLIENT_ID', ''),
+            'client_secret' => env('GIGACHAT_CLIENT_SECRET', ''),
+            'url' => env('GIGACHAT_URL', 'https://gigachat.devices.sberbank.ru/api/v1'),
+            'auth_url' => env('GIGACHAT_AUTH_URL', 'https://ngw.devices.sberbank.ru:9443/api/v2'),
+            'cert_path' => env('GIGACHAT_CERT_PATH', ''),
+            'scope' => env('GIGACHAT_SCOPE', ''),
+        ],
     ],
 ];

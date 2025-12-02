@@ -12,6 +12,7 @@ use Prism\Prism\Providers\Anthropic\Anthropic;
 use Prism\Prism\Providers\DeepSeek\DeepSeek;
 use Prism\Prism\Providers\ElevenLabs\ElevenLabs;
 use Prism\Prism\Providers\Gemini\Gemini;
+use Prism\Prism\Providers\Gigachat\Gigachat;
 use Prism\Prism\Providers\Groq\Groq;
 use Prism\Prism\Providers\Mistral\Mistral;
 use Prism\Prism\Providers\Ollama\Ollama;
@@ -223,6 +224,21 @@ class PrismManager
         return new ElevenLabs(
             apiKey: $config['api_key'] ?? '',
             url: $config['url'] ?? 'https://api.elevenlabs.io/v1/',
+        );
+    }
+
+    /**
+     * @param  array<string, string>  $config
+     */
+    protected function createGigachatProvider(array $config): Gigachat
+    {
+        return new Gigachat(
+            clientId: $config['client_id'] ?? '',
+            clientSecret: $config['client_secret'] ?? '',
+            url: $config['url'] ?? '',
+            authUrl: $config['auth_url'] ?? '',
+            certPath: $config['cert_path'] ?? '',
+            scope: $config['scope'] ?? '',
         );
     }
 }
