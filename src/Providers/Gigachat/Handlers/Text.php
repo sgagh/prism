@@ -48,7 +48,7 @@ class Text
         $request->addMessage($responseMessage);
 
         return match ($this->mapFinishReason($data)) {
-            FinishReason::Stop => $this->handleStop($data, $request),
+            FinishReason::Stop, FinishReason::ContentFilter => $this->handleStop($data, $request),
             default => throw new PrismException(message: 'Gigachat: unknown finish reason'),
         };
     }
