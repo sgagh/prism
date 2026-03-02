@@ -13,7 +13,10 @@ use Prism\Prism\Enums\Provider;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Facades\Tool;
 use Prism\Prism\ValueObjects\Media\Document;
+use Prism\Prism\ValueObjects\Media\Image;
 use Prism\Prism\ValueObjects\MessagePartWithCitations;
+use Prism\Prism\ValueObjects\Messages\AssistantMessage;
+use Prism\Prism\ValueObjects\Messages\ToolResultMessage;
 use Prism\Prism\ValueObjects\Messages\UserMessage;
 use Prism\Prism\ValueObjects\ProviderTool;
 use Prism\Prism\ValueObjects\ProviderToolCall;
@@ -186,6 +189,16 @@ describe('tools', function (): void {
         expect($firstStep->toolCalls[1]->arguments())->toBe([
             'city' => 'Detroit',
         ]);
+
+        // Verify the assistant message from step 1 is present in step 2's input messages
+        $secondStep = $response->steps[1];
+        expect($secondStep->messages)->toHaveCount(3);
+        expect($secondStep->messages[0])->toBeInstanceOf(UserMessage::class);
+        expect($secondStep->messages[1])->toBeInstanceOf(AssistantMessage::class);
+        expect($secondStep->messages[1]->toolCalls)->toHaveCount(2);
+        expect($secondStep->messages[1]->toolCalls[0]->name)->toBe('search');
+        expect($secondStep->messages[1]->toolCalls[1]->name)->toBe('weather');
+        expect($secondStep->messages[2])->toBeInstanceOf(ToolResultMessage::class);
 
         expect($response->usage->promptTokens)->toBeNumeric();
         expect($response->usage->completionTokens)->toBeNumeric();
@@ -490,7 +503,7 @@ it('can analyze images with detail parameter', function (): void {
         'openai/generate-text-with-a-prompt'
     );
 
-    $image = \Prism\Prism\ValueObjects\Media\Image::fromLocalPath('tests/Fixtures/diamond.png')
+    $image = Image::fromLocalPath('tests/Fixtures/diamond.png')
         ->withProviderOptions(['detail' => 'high']);
 
     Prism::text()
@@ -517,7 +530,7 @@ it('omits detail parameter when not specified', function (): void {
         'openai/generate-text-with-a-prompt'
     );
 
-    $image = \Prism\Prism\ValueObjects\Media\Image::fromLocalPath('tests/Fixtures/diamond.png');
+    $image = Image::fromLocalPath('tests/Fixtures/diamond.png');
 
     Prism::text()
         ->using(Provider::OpenAI, 'gpt-4o')
@@ -567,7 +580,7 @@ it('can analyze documents', function (): void {
 it('sends reasoning effort when defined', function (): void {
     FixtureResponse::fakeResponseSequence('v1/responses', 'openai/text-reasoning-effort');
 
-    Prism::text()
+    $response = Prism::text()
         ->using('openai', 'gpt-5')
         ->withPrompt('Who are you?')
         ->withProviderOptions([
@@ -578,6 +591,10 @@ it('sends reasoning effort when defined', function (): void {
         ->asText();
 
     Http::assertSent(fn (Request $request): bool => $request->data()['reasoning']['effort'] === 'low');
+
+    expect($response->additionalContent['reasoningSummaries'])->toBe([
+        'I should introduce myself to the user.',
+    ]);
 });
 
 describe('provider tool results', function (): void {
@@ -601,6 +618,46 @@ describe('provider tool results', function (): void {
         expect($providerTool->data)->toHaveKey('action');
         expect($providerTool->data['action']['type'])->toBe('search');
         expect($providerTool->data['action']['query'])->toContain('London weather');
+
+        expect($response->steps[0]->additionalContent)->toHaveKey('searchQueries');
+        expect($response->steps[0]->additionalContent['searchQueries'])->toBe(['London weather forecast today']);
+
+        // open_page and find_in_page arrays should be empty for this fixture (only has search actions)
+        expect($response->steps[0]->additionalContent)->not->toHaveKey('openPageUrls');
+        expect($response->steps[0]->additionalContent)->not->toHaveKey('findInPagePatterns');
+    });
+
+    it('extracts openPageUrls and findInPagePatterns from web search actions', function (): void {
+        FixtureResponse::fakeResponseSequence('v1/responses', 'openai/generate-text-with-web-search-mixed-actions');
+
+        $response = Prism::text()
+            ->using(Provider::OpenAI, 'gpt-5.2')
+            ->withPrompt('Go to https://prismphp.com and find information about providers. Search the page for "OpenAI" to find which providers are supported.')
+            ->withProviderTools([new ProviderTool(type: 'web_search', name: 'web_search')])
+            ->asText();
+
+        $step = $response->steps[0];
+
+        // This fixture has open_page and find_in_page actions, but no search actions
+        expect($step->additionalContent)->not->toHaveKey('searchQueries');
+
+        // Verify openPageUrls contains URLs from open_page actions
+        expect($step->additionalContent)->toHaveKey('openPageUrls');
+        expect($step->additionalContent['openPageUrls'])->toBe([
+            'https://prismphp.com/',
+            'https://prismphp.com/getting-started/introduction.html',
+        ]);
+
+        // Verify findInPagePatterns contains patterns from find_in_page actions
+        expect($step->additionalContent)->toHaveKey('findInPagePatterns');
+        expect($step->additionalContent['findInPagePatterns'])->toBe(['OpenAI']);
+
+        // Verify providerToolCalls contains all the raw action data
+        expect($step->providerToolCalls)->toHaveCount(3);
+        expect($step->providerToolCalls[0]->type)->toBe('web_search_call');
+        expect($step->providerToolCalls[0]->data['action']['type'])->toBe('open_page');
+        expect($step->providerToolCalls[1]->data['action']['type'])->toBe('open_page');
+        expect($step->providerToolCalls[2]->data['action']['type'])->toBe('find_in_page');
     });
 
     it('captures code interpreter provider tool in providerToolCalls', function (): void {
@@ -690,6 +747,13 @@ describe('provider tool results', function (): void {
         expect($secondStep->toolCalls)->toHaveCount(0);
         expect($secondStep->providerToolCalls)->toHaveCount(1);
         expect($secondStep->providerToolCalls[0]->type)->toBe('code_interpreter_call');
+
+        // Verify the assistant message from step 1 is present in step 2's input messages
+        expect($secondStep->messages)->toHaveCount(3);
+        expect($secondStep->messages[1])->toBeInstanceOf(AssistantMessage::class);
+        expect($secondStep->messages[1]->toolCalls)->toHaveCount(1);
+        expect($secondStep->messages[1]->toolCalls[0]->name)->toBe('weather');
+        expect($secondStep->messages[2])->toBeInstanceOf(ToolResultMessage::class);
     });
 });
 
@@ -740,4 +804,51 @@ describe('citations', function (): void {
 
         expect($responseTwo->text)->toContain('Metcheck');
     });
+});
+
+it('passes store parameter when specified', function (): void {
+    FixtureResponse::fakeResponseSequence(
+        'v1/responses',
+        'openai/generate-text-with-a-prompt'
+    );
+
+    $store = false;
+
+    Prism::text()
+        ->using(Provider::OpenAI, 'gpt-4o')
+        ->withPrompt('Give me TLDR of this legal document')
+        ->withProviderOptions([
+            'store' => $store,
+        ])
+        ->asText();
+
+    Http::assertSent(function (Request $request) use ($store): true {
+        $body = json_decode($request->body(), true);
+
+        expect(data_get($body, 'store'))->toBe($store);
+
+        return true;
+    });
+});
+
+it('does not loop infinitely when using specific tool choice', function (): void {
+    FixtureResponse::fakeResponseSequence('v1/responses', 'openai/text-with-specific-tool-choice');
+
+    $weatherTool = Tool::as('weather')
+        ->for('Get weather for a city')
+        ->withStringParameter('city', 'City name')
+        ->using(fn (string $city): string => "72°F in {$city}");
+
+    $response = Prism::text()
+        ->using('openai', 'gpt-4o')
+        ->withPrompt('What is the weather in New York?')
+        ->withTools([$weatherTool])
+        ->withToolChoice('weather')
+        ->withMaxSteps(5)
+        ->asText();
+
+    // Should complete in 2 steps (tool call + final response), not 5 (maxSteps)
+    expect($response->steps)->toHaveCount(2);
+    expect($response->text)->not->toBeEmpty();
+    expect($response->finishReason)->toBe(FinishReason::Stop);
 });

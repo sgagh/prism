@@ -126,6 +126,10 @@ export default defineConfig({
                 link: "/core-concepts/image-generation",
               },
               {
+                text: "Moderation",
+                link: "/core-concepts/moderation",
+              },
+              {
                 text: "Audio",
                 link: "/core-concepts/audio",
               },
@@ -204,6 +208,10 @@ export default defineConfig({
                 link: "/providers/openai",
               },
               {
+                text: "OpenRouter",
+                link: "/providers/openrouter",
+              },
+              {
                 text: "Voyage AI",
                 link: "/providers/voyageai",
               },
@@ -260,7 +268,7 @@ export default defineConfig({
     ],
     footer: {
       message: "Released under the MIT License.",
-      copyright: "Copyright © 2024-present TJ Miller",
+      copyright: "Copyright © 2026-present TJ Miller",
     },
   },
   vite: {
