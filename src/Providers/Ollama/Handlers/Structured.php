@@ -65,6 +65,7 @@ class Structured
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data,
         ));
     }
 
@@ -73,6 +74,7 @@ class Structured
      */
     protected function sendRequest(Request $request): array
     {
+        /** @var \Illuminate\Http\Client\Response $response */
         $response = $this->client->post('api/chat', [
             'model' => $request->model(),
             'messages' => (new MessageMap(array_merge(

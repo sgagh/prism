@@ -43,13 +43,6 @@ class Text
 
         $this->validateResponse($data);
 
-        $responseMessage = new AssistantMessage(
-            data_get($data, 'message.content') ?? '',
-            $this->mapToolCalls(data_get($data, 'message.tool_calls', [])),
-        );
-
-        $request->addMessage($responseMessage);
-
         // Check for tool calls first, regardless of finish reason
         if (! empty(data_get($data, 'message.tool_calls'))) {
             return $this->handleToolCalls($data, $request);
@@ -66,6 +59,7 @@ class Text
      */
     protected function sendRequest(Request $request): array
     {
+        /** @var \Illuminate\Http\Client\Response $response */
         $response = $this
             ->client
             ->post('api/chat', [
@@ -95,14 +89,18 @@ class Text
      */
     protected function handleToolCalls(array $data, Request $request): Response
     {
-        $toolResults = $this->callTools(
-            $request->tools(),
-            $this->mapToolCalls(data_get($data, 'message.tool_calls', [])),
-        );
+        $toolCalls = $this->mapToolCalls(data_get($data, 'message.tool_calls', []));
 
-        $request->addMessage(new ToolResultMessage($toolResults));
+        $toolResults = $this->callTools($request->tools(), $toolCalls);
 
         $this->addStep($data, $request, $toolResults);
+
+        $request->addMessage(new AssistantMessage(
+            data_get($data, 'message.content') ?? '',
+            $toolCalls,
+        ));
+        $request->addMessage(new ToolResultMessage($toolResults));
+        $request->resetToolChoice();
 
         if ($this->shouldContinue($request)) {
             return $this->handle($request);
@@ -149,6 +147,7 @@ class Text
             messages: $request->messages(),
             systemPrompts: $request->systemPrompts(),
             additionalContent: [],
+            raw: $data,
         ));
     }
 
