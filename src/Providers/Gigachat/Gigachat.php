@@ -9,9 +9,12 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Str;
 use Prism\Prism\Concerns\InitializesClient;
+use Prism\Prism\Embeddings\Request as EmbeddingsRequest;
+use Prism\Prism\Embeddings\Response as EmbeddingsResponse;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Exceptions\PrismRateLimitedException;
 use Prism\Prism\Exceptions\PrismRequestTooLargeException;
+use Prism\Prism\Providers\Gigachat\Handlers\Embeddings;
 use Prism\Prism\Providers\Gigachat\Handlers\Text;
 use Prism\Prism\Providers\Gigachat\ValueObjects\AccessToken;
 use Prism\Prism\Providers\Provider;
@@ -37,6 +40,18 @@ class Gigachat extends Provider
     {
         $this->validateAuthToken();
         $handler = new Text($this->client(
+            $request->clientOptions(),
+            $request->clientRetry()
+        ));
+
+        return $handler->handle($request);
+    }
+
+    #[\Override]
+    public function embeddings(EmbeddingsRequest $request): EmbeddingsResponse
+    {
+        $this->validateAuthToken();
+        $handler = new Embeddings($this->client(
             $request->clientOptions(),
             $request->clientRetry()
         ));
@@ -90,7 +105,7 @@ class Gigachat extends Provider
 
     protected function validateAuthToken(): void
     {
-        if (! $this->accessToken instanceof \Prism\Prism\Providers\Gigachat\ValueObjects\AccessToken || $this->accessToken->isExpired()) {
+        if (! $this->accessToken instanceof AccessToken || $this->accessToken->isExpired()) {
             $this->accessToken = $this->getAuthToken();
         }
     }
