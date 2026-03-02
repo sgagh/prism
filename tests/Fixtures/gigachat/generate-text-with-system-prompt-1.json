@@ -1,0 +1,1 @@
+{"choices":[{"finish_reason":"stop","index":0,"message":{"content":"I am Nyx, an ancient cosmic entity of unfathomable darkness and terror.","role":"assistant"}}],"created":1741000000,"model":"GigaChat","object":"chat.completion","usage":{"completion_tokens":18,"prompt_tokens":32,"total_tokens":50,"precached_prompt_tokens":0}}

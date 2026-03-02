@@ -1,0 +1,1 @@
+{"choices":[{"finish_reason":"stop","index":0,"message":{"content":"I am GigaChat, a large language model created by Sber.","role":"assistant"}}],"created":1741000000,"model":"GigaChat","object":"chat.completion","usage":{"completion_tokens":15,"prompt_tokens":7,"total_tokens":22,"precached_prompt_tokens":0}}

@@ -7,6 +7,7 @@ namespace Prism\Prism\Providers\Gigachat;
 use GuzzleHttp\RequestOptions;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Str;
 use Prism\Prism\Concerns\InitializesClient;
 use Prism\Prism\Embeddings\Request as EmbeddingsRequest;
@@ -133,5 +134,13 @@ class Gigachat extends Provider
         return [
             RequestOptions::VERIFY => $this->certPath,
         ];
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    protected function processRateLimits(Response $response): array
+    {
+        return [];
     }
 }
