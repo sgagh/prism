@@ -10,13 +10,14 @@ use Prism\Prism\ValueObjects\Citation;
 class CitationsMapper
 {
     /**
+     * @param  array<int, string>  $citationsUrls
      * @return Citation[]
      */
     public static function mapFromPerplexity(string $content, array $citationsUrls): array
     {
         return array_map(
             self::mapCitation(...),
-            $citationsUrls ?? []
+            $citationsUrls
         );
     }
 

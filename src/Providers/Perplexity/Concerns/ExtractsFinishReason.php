@@ -29,7 +29,8 @@ trait ExtractsFinishReason
 
         return match ($rawFinishReason) {
             'stop' => FinishReason::Stop,
-            'length' => FinishReason::Length,
+            'length', 'incomplete' => FinishReason::Length,
+            'failed' => FinishReason::Error,
             default => FinishReason::Unknown,
         };
     }

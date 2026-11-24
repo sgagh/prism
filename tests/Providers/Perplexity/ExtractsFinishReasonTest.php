@@ -34,6 +34,22 @@ it('extracts finish reason correctly from response data', function (array $data,
         ],
         'expected' => FinishReason::Length,
     ],
+    'incomplete finish reason' => [
+        'data' => [
+            'choices' => [
+                ['finish_reason' => 'incomplete'],
+            ],
+        ],
+        'expected' => FinishReason::Length,
+    ],
+    'failed finish reason' => [
+        'data' => [
+            'choices' => [
+                ['finish_reason' => 'failed'],
+            ],
+        ],
+        'expected' => FinishReason::Error,
+    ],
     'undocumented finish reason' => [
         'data' => [
             'choices' => [

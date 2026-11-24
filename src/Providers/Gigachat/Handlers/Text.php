@@ -53,6 +53,9 @@ class Text
         };
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     protected function handleStop(array $data, Request $request): Response
     {
         $this->addStep($data, $request);
@@ -83,6 +86,9 @@ class Text
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     protected function addStep(
         array $data,
         Request $request,

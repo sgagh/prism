@@ -7,6 +7,9 @@ use Illuminate\Support\Str;
 
 trait ExtractsAdditionalContent
 {
+    use ExtractsCitations;
+    use ExtractsSearchResults;
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -16,8 +19,10 @@ trait ExtractsAdditionalContent
     protected function extractsAdditionalContent(array $data): array
     {
         return Arr::whereNotNull([
-            'citations' => data_get($data, 'citations'),
+            'citations' => $this->extractCitations($data) ?: null,
+            'citation_urls' => data_get($data, 'citations'),
             'search_results' => data_get($data, 'search_results'),
+            'searchResults' => $this->extractSearchResults($data) ?: null,
             'reasoning' => $this->extractsReasoning(data_get($data, 'choices.{last}.message.content')),
         ]);
     }

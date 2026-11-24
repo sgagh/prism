@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Prism\Prism\Enums\FinishReason;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Facades\Prism;
+use Prism\Prism\Providers\Perplexity\ValueObjects\SearchResult;
+use Prism\Prism\ValueObjects\Citation;
 use Tests\Fixtures\FixtureResponse;
 
 beforeEach(function (): void {
@@ -65,6 +68,65 @@ it('reports completion tokens as Perplexity does and leaves reasoning and citati
         'cache_read_input_tokens' => null,
         'thought_tokens' => null,
     ]);
+});
+
+it('maps citations and search results into value objects', function (): void {
+    FixtureResponse::fakeResponseSequence('chat/completions', 'perplexity/generate-text-with-a-prompt');
+
+    $response = Prism::text()
+        ->using(Provider::Perplexity, 'sonar')
+        ->withPrompt("How's the weather in southern Brazil?")
+        ->asText();
+
+    expect($response->additionalContent['citations'])
+        ->toBeArray()
+        ->toHaveCount(14)
+        ->and($response->additionalContent['citations'][0])
+        ->toBeInstanceOf(Citation::class)
+        ->and($response->additionalContent['citations'][0]->source)
+        ->toBe('https://www.sunheron.com/south-america/brazil/south-brazil-weather-november/')
+        ->and($response->additionalContent['citation_urls'])
+        ->toHaveCount(14)
+        ->and($response->additionalContent['searchResults'])
+        ->toBeArray()
+        ->toHaveCount(14)
+        ->and($response->additionalContent['searchResults'][0])
+        ->toBeInstanceOf(SearchResult::class)
+        ->and($response->additionalContent['searchResults'][0]->title)
+        ->toBe('South Brazil weather in November 2025 - Sunheron')
+        ->and($response->additionalContent['searchResults'][0]->lastUpdated->toDateString())
+        ->toBe('2025-10-28')
+        ->and($response->additionalContent['search_results'])
+        ->toBeArray();
+});
+
+it('sends system prompts to Perplexity', function (): void {
+    Http::fake([
+        '*' => Http::response([
+            'id' => 'pplx-system',
+            'model' => 'sonar',
+            'choices' => [[
+                'index' => 0,
+                'message' => ['role' => 'assistant', 'content' => 'Hi.'],
+                'finish_reason' => 'stop',
+            ]],
+            'usage' => ['prompt_tokens' => 1, 'completion_tokens' => 1, 'total_tokens' => 2],
+        ]),
+    ])->preventStrayRequests();
+
+    Prism::text()
+        ->using(Provider::Perplexity, 'sonar')
+        ->withSystemPrompt('Answer briefly')
+        ->withPrompt('Hi')
+        ->asText();
+
+    Http::assertSent(function (Request $request): bool {
+        $messages = $request->data()['messages'] ?? [];
+
+        return ($messages[0]['role'] ?? null) === 'system'
+            && ($messages[0]['content'][0]['text'] ?? null) === 'Answer briefly'
+            && ($messages[1]['role'] ?? null) === 'user';
+    });
 });
 
 it('reports Length when the response hits the token limit', function (): void {

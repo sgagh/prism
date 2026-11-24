@@ -10,30 +10,38 @@ use Prism\Prism\Providers\Perplexity\ValueObjects\SearchResult;
 class SearchResultMapper
 {
     /**
+     * @param  array<int, array<string, mixed>>  $searchResults
      * @return SearchResult[]
      */
     public static function mapFromPerplexity(array $searchResults): array
     {
         return array_map(
             self::mapSearchResult(...),
-            $searchResults ?? []
+            array_values(array_filter($searchResults, is_array(...)))
         );
     }
 
     /**
-     * @param  string  $content
-     * @param  string  $citationUrl
-     * @param  int  $index
+     * @param  array<string, mixed>  $searchResultData
      */
-    protected static function mapSearchResult(array $seachResultData): SearchResult
+    protected static function mapSearchResult(array $searchResultData): SearchResult
     {
         return new SearchResult(
-            title: $seachResultData['title'] ?? '',
-            url: $seachResultData['url'] ?? '',
-            date: Carbon::parse($seachResultData['date'] ?? ''),
-            lastUpdated: Carbon::parse($seachResultData['lastUpdated'] ?? ''),
-            snippet: $seachResultData['snippet'] ?? '',
-            source: $seachResultData['source'] ?? '',
+            title: $searchResultData['title'] ?? '',
+            url: $searchResultData['url'] ?? '',
+            date: self::parseDate($searchResultData['date'] ?? null),
+            lastUpdated: self::parseDate($searchResultData['last_updated'] ?? $searchResultData['lastUpdated'] ?? null),
+            snippet: $searchResultData['snippet'] ?? '',
+            source: $searchResultData['source'] ?? '',
         );
+    }
+
+    protected static function parseDate(mixed $value): Carbon
+    {
+        try {
+            return Carbon::parse(is_string($value) && $value !== '' ? $value : 'now');
+        } catch (\Throwable) {
+            return Carbon::now();
+        }
     }
 }

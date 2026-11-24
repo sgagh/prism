@@ -97,8 +97,13 @@ class Gigachat extends Provider
      */
     protected function client(array $options = [], array $retry = [], ?string $baseUrl = null): PendingRequest
     {
-        return $this->baseClient()
-            ->when($this->accessToken, fn ($client) => $client->withToken($this->accessToken->token))
+        $client = $this->baseClient();
+
+        if ($this->accessToken instanceof AccessToken) {
+            $client = $client->withToken($this->accessToken->token);
+        }
+
+        return $client
             ->withOptions(array_merge($this->clientDefaultOptions(), $options))
             ->when($retry !== [], fn ($client) => $client->retry(...$retry))
             ->baseUrl($baseUrl ?? $this->url);
@@ -129,6 +134,9 @@ class Gigachat extends Provider
         return AccessToken::fromArray($response->json());
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function clientDefaultOptions(): array
     {
         return [

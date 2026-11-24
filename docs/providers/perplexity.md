@@ -31,8 +31,19 @@ Sonar models support image analysis through direct image uploads. You can includ
 3. `AssistantMessage`
 
 ### Additional fields
-Perplexity outputs additional fields in the response, such as `citations`, `search_results`, and the `reasoning` that is extracted from the model response. These fields are exposed in the response object
-via the property `additionalFields`. e.g `$response->additionalFields['citations']`.
+Perplexity outputs additional fields in the response, such as citations, search results, and the reasoning extracted from the model response. These are exposed on `additionalContent`:
+
+- `citations` — an array of `Prism\Prism\ValueObjects\Citation` objects. The citation URL is available via `$citation->source`.
+- `citation_urls` — the raw citation URLs returned by the API.
+- `searchResults` — an array of `Prism\Prism\Providers\Perplexity\ValueObjects\SearchResult` objects.
+- `search_results` — the raw search results returned by the API.
+- `reasoning` — reasoning extracted from `<think>` blocks, if present.
+
+```php
+foreach ($response->additionalContent['citations'] as $citation) {
+    echo $citation->source;
+}
+```
 
 ### Token Usage
 
