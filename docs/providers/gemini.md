@@ -391,9 +391,88 @@ $response = Prism::text()
     ->asText();
 ```
 
+Cached tokens show up in `$response->usage->cacheReadInputTokens` and are left out of `promptTokens`. That goes for Gemini's implicit cache hits too, even when you never created a cache yourself.
+
+## Token Usage
+
+Gemini counts cached input inside `promptTokenCount` and reports thinking and tool-use tokens next to it. Prism moves each count into its own bucket so they don't overlap (see [Token Usage](/core-concepts/text-generation#token-usage)). Text, structured, streamed and image responses all report usage like this:
+
+| Usage field | What it holds |
+|-------------|---------------|
+| `promptTokens` | `promptTokenCount` minus `cachedContentTokenCount`, plus `toolUsePromptTokenCount` |
+| `cacheReadInputTokens` | `cachedContentTokenCount`, `null` when Gemini leaves it out |
+| `cacheWriteInputTokens` | Always `null`, Gemini doesn't report cache writes |
+| `completionTokens` | `candidatesTokenCount` plus `thoughtsTokenCount` |
+| `thoughtTokens` | `thoughtsTokenCount`, already part of `completionTokens` |
+
+A few things worth knowing:
+
+- `toolUsePromptTokenCount` is what Gemini reports for tool results it feeds back to the model, like file search or URL context. Prism counts it as input because that's what it is, but it isn't necessarily billed: Google doesn't charge for the context Search grounding retrieves, for example. Check [Gemini's pricing](https://ai.google.dev/gemini-api/docs/pricing) for each tool.
+- In a stream, every chunk's `usageMetadata` is the running total for that response, so Prism keeps the latest one and ignores chunks without it. The `StreamEndEvent` adds up every step of a tool loop, and each `StepFinishEvent` carries its own step's usage.
+- Imagen responses don't report token usage, so their counts stay at `0`.
+
 ## Embeddings
 
 You can customize your Gemini embeddings request with additional parameters using `->withProviderOptions()`.
+
+### Gemini Embedding 2 Preview
+
+Gemini's `gemini-embedding-2-preview` model supports text, images, audio, video, and PDF documents in a unified embedding space. Use Prism's content entry API to control whether you want a single aggregated embedding or multiple embeddings in one request.
+
+### Single Modality Inputs
+
+```php
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\ValueObjects\Media\Audio;
+use Prism\Prism\ValueObjects\Media\Document;
+use Prism\Prism\ValueObjects\Media\Image;
+use Prism\Prism\ValueObjects\Media\Video;
+
+Prism::embeddings()
+    ->using(Provider::Gemini, 'gemini-embedding-2-preview')
+    ->fromImage(Image::fromLocalPath('/path/to/product.png'))
+    ->fromAudio(Audio::fromLocalPath('/path/to/example.mp3'))
+    ->fromVideo(Video::fromLocalPath('/path/to/example.mp4'))
+    ->fromDocument(Document::fromLocalPath('/path/to/report.pdf'))
+    ->asEmbeddings();
+```
+
+### Aggregated Multimodal Embeddings
+
+Use `fromContent()` to combine multiple parts into a single embedding:
+
+```php
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\ValueObjects\Media\Image;
+
+Prism::embeddings()
+    ->using(Provider::Gemini, 'gemini-embedding-2-preview')
+    ->fromContent([
+        'An image of a dog',
+        Image::fromLocalPath('/path/to/dog.png'),
+    ])
+    ->asEmbeddings();
+```
+
+### Batch Embeddings
+
+Use `fromContents()` to generate multiple embeddings in a single request:
+
+```php
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\ValueObjects\Media\Image;
+
+Prism::embeddings()
+    ->using(Provider::Gemini, 'gemini-embedding-2-preview')
+    ->fromContents([
+        ['The dog is cute'],
+        [Image::fromLocalPath('/path/to/dog.png')],
+    ])
+    ->asEmbeddings();
+```
 
 ### Title
 
@@ -457,6 +536,8 @@ $response = Prism::text()
     ->withProviderOptions(['thinkingBudget' => 300])
     ->asText();
 ```
+
+Thinking tokens show up in `$response->usage->thoughtTokens`, and they're already counted in `completionTokens`.
 
 > [!NOTE]
 > Do not specify a `thinkingBudget` on 2.0 or prior series Gemini models as your request will fail.

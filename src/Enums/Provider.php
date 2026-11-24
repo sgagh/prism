@@ -19,4 +19,5 @@ enum Provider: string
     case ElevenLabs = 'elevenlabs';
     case Perplexity = 'perplexity';
     case Gigachat = 'gigachat';
+    case Z = 'z';
 }

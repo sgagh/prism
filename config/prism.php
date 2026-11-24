@@ -73,5 +73,9 @@ return [
             'cert_path' => env('GIGACHAT_CERT_PATH', ''),
             'scope' => env('GIGACHAT_SCOPE', ''),
         ],
+        'z' => [
+            'url' => env('Z_URL', 'https://api.z.ai/api/paas/v4'),
+            'api_key' => env('Z_API_KEY', ''),
+        ],
     ],
 ];

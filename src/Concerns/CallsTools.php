@@ -14,6 +14,7 @@ use Prism\Prism\Streaming\Events\ArtifactEvent;
 use Prism\Prism\Streaming\Events\ToolResultEvent;
 use Prism\Prism\Tool;
 use Prism\Prism\ValueObjects\ToolCall;
+use Prism\Prism\ValueObjects\ToolError;
 use Prism\Prism\ValueObjects\ToolOutput;
 use Prism\Prism\ValueObjects\ToolResult;
 
@@ -125,16 +126,40 @@ trait CallsTools
      * @param  Tool[]  $tools
      * @return array{toolResult: ToolResult, events: array<int, ToolResultEvent|ArtifactEvent>}
      */
-    protected function executeToolCall(array $tools, ToolCall $toolCall, string $messageId): array
+    protected static function executeToolCall(array $tools, ToolCall $toolCall, string $messageId): array
     {
         $events = [];
 
         try {
-            $tool = $this->resolveTool($toolCall->name, $tools);
+            $tool = self::resolveTool($toolCall->name, $tools);
             $output = call_user_func_array(
                 $tool->handle(...),
                 $toolCall->arguments()
             );
+
+            if ($output instanceof ToolError) {
+                $toolResult = new ToolResult(
+                    toolCallId: $toolCall->id,
+                    toolName: $toolCall->name,
+                    args: $toolCall->arguments(),
+                    result: $output->message,
+                    toolCallResultId: $toolCall->resultId,
+                );
+
+                $events[] = new ToolResultEvent(
+                    id: EventID::generate(),
+                    timestamp: time(),
+                    toolResult: $toolResult,
+                    messageId: $messageId,
+                    success: false,
+                    error: $output->message,
+                );
+
+                return [
+                    'toolResult' => $toolResult,
+                    'events' => $events,
+                ];
+            }
 
             if (is_string($output)) {
                 $output = new ToolOutput(result: $output);
@@ -199,8 +224,10 @@ trait CallsTools
 
     /**
      * @param  Tool[]  $tools
+     *
+     * @throws PrismException
      */
-    protected function resolveTool(string $name, array $tools): Tool
+    protected static function resolveTool(string $name, array $tools): Tool
     {
         try {
             return collect($tools)

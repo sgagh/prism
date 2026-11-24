@@ -22,6 +22,7 @@ use Prism\Prism\Providers\Perplexity\Perplexity;
 use Prism\Prism\Providers\Provider;
 use Prism\Prism\Providers\VoyageAI\VoyageAI;
 use Prism\Prism\Providers\XAI\XAI;
+use Prism\Prism\Providers\Z\Z;
 
 class PrismManager
 {
@@ -143,6 +144,14 @@ class PrismManager
     }
 
     /**
+     * @param  array<string, string|null>  $config
+     */
+    protected function createPerplexityProvider(array $config): Perplexity
+    {
+        return new Perplexity(apiKey: $config['api_key'] ?? '', url: $config['url'] ?? '');
+    }
+
+    /**
      * @param  array<string, mixed>  $config
      */
     protected function callCustomCreator(string $provider, array $config): Provider
@@ -221,17 +230,6 @@ class PrismManager
     /**
      * @param  array<string, string>  $config
      */
-    protected function createPerplexityProvider(array $config): Perplexity
-    {
-        return new Perplexity(
-            apiKey: $config['api_key'] ?? '',
-            url: $config['url'] ?? '',
-        );
-    }
-
-    /**
-     * @param  array<string, string>  $config
-     */
     protected function createGigachatProvider(array $config): Gigachat
     {
         return new Gigachat(
@@ -241,6 +239,17 @@ class PrismManager
             authUrl: $config['auth_url'] ?? '',
             certPath: $config['cert_path'] ?? '',
             scope: $config['scope'] ?? '',
+        );
+    }
+
+    /**
+     * @param  array<string, string>  $config
+     */
+    protected function createZProvider(array $config): Z
+    {
+        return new Z(
+            apiKey: $config['api_key'],
+            url: $config['url'],
         );
     }
 }
