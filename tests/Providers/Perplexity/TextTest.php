@@ -9,6 +9,8 @@ use Prism\Prism\Enums\Provider;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Providers\Perplexity\ValueObjects\SearchResult;
 use Prism\Prism\ValueObjects\Citation;
+use Prism\Prism\ValueObjects\Messages\AssistantMessage;
+use Prism\Prism\ValueObjects\Messages\UserMessage;
 use Tests\Fixtures\FixtureResponse;
 
 beforeEach(function (): void {
@@ -124,8 +126,41 @@ it('sends system prompts to Perplexity', function (): void {
         $messages = $request->data()['messages'] ?? [];
 
         return ($messages[0]['role'] ?? null) === 'system'
+            && ($messages[0]['content'][0]['type'] ?? null) === 'text'
             && ($messages[0]['content'][0]['text'] ?? null) === 'Answer briefly'
             && ($messages[1]['role'] ?? null) === 'user';
+    });
+});
+
+it('maps assistant history as text content blocks', function (): void {
+    Http::fake([
+        '*' => Http::response([
+            'id' => 'pplx-history',
+            'model' => 'sonar',
+            'choices' => [[
+                'index' => 0,
+                'message' => ['role' => 'assistant', 'content' => 'Fine.'],
+                'finish_reason' => 'stop',
+            ]],
+            'usage' => ['prompt_tokens' => 1, 'completion_tokens' => 1, 'total_tokens' => 2],
+        ]),
+    ])->preventStrayRequests();
+
+    Prism::text()
+        ->using(Provider::Perplexity, 'sonar')
+        ->withMessages([
+            new UserMessage('Hi'),
+            new AssistantMessage('Hello'),
+            new UserMessage('How are you?'),
+        ])
+        ->asText();
+
+    Http::assertSent(function (Request $request): bool {
+        $messages = $request->data()['messages'] ?? [];
+
+        return ($messages[1]['role'] ?? null) === 'assistant'
+            && ($messages[1]['content'][0]['type'] ?? null) === 'text'
+            && ($messages[1]['content'][0]['text'] ?? null) === 'Hello';
     });
 });
 
